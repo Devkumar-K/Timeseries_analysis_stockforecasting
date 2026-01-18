@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Analysis</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-center mt-4">Stock Analysis</h1>
+        <form method="POST" class="form-inline justify-content-center mb-4">
+            <div class="form-group mb-2">
+                <label for="symbol" class="sr-only">Enter Stock Symbol:</label>
+                <input type="text" id="symbol" name="symbol" class="form-control" placeholder="AAPL" required>
+            </div>
+            <button type="submit" class="btn btn-primary mb-2">Analyze</button>
+        </form>
+
+        {% if symbol %}
+            <h2 class="text-center">Analysis for {{ symbol }}</h2>
+            <h3>ADF Test Results</h3>
+            <ul class="list-group">
+                <li class="list-group-item">ADF Statistic: {{ adf_results['ADF Statistic'] }}</li>
+                <li class="list-group-item">p-value: {{ adf_results['p-value'] }}</li>
+                <li class="list-group-item">Critical Values: {{ adf_results['Critical Values'] }}</li>
+                <li class="list-group-item">Status: {{ adf_results['Stationary'] }}</li>
+            </ul>
+            <h3>Model Evaluation</h3>
+            <ul class="list-group">
+                <li class="list-group-item">Mean Absolute Error: {{ mae }}</li>
+                <li class="list-group-item">Root Mean Squared Error: {{ rmse }}</li>
+            </ul>
+            <h3>Plots</h3>
+            <div class="mb-4">
+                <h4>Closing Prices</h4>
+                <img src="{{ url_for('static', filename='closing_prices.png') }}" alt="Closing Prices" class="img-fluid">
+            </div>
+            <div class="mb-4">
+                <h4>Trend, Seasonality, and Cyclic Components</h4>
+                <img src="{{ url_for('static', filename='decomposition.png') }}" alt="Decomposition" class="img-fluid">
+            </div>
+            <div class="mb-4">
+                <h4>Autocorrelation Function (ACF)</h4>
+                <img src="{{ url_for('static', filename='acf.png') }}" alt="ACF" class="img-fluid">
+            </div>
+            <div class="mb-4">
+                <h4>Stock Prices Averages</h4>
+                <img src="{{ url_for('static', filename='averages.png') }}" alt="Averages" class="img-fluid">
+            </div>
+            <div class="mb-4">
+                <h4>Stock Price Heatmap</h4>
+                <img src="{{ url_for('static', filename='heatmap.png') }}" alt="Heatmap" class="img-fluid">
+            </div>
+            <div class="mb-4">
+                <h4>ARIMA Model Forecast</h4>
+                <img src="{{ url_for('static', filename='forecast.png') }}" alt="Forecast" class="img-fluid">
+            </div>
+            <div class="mb-4">
+                <h4>Forecasted Prices with Confidence Interval</h4>
+                <img src="{{ url_for('static', filename='future_forecast.png') }}" alt="Future Forecast" class="img-fluid">
+            </div>
+        {% endif %}
+    </div>
+
+    <footer class="text-center mt-4">
+    </footer>
+
+    <!-- Bootstrap JS and dependencies -->
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</body>
+</html>
