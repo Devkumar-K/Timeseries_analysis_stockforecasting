@@ -21,8 +21,8 @@ StockPredPy is a Python-based project that performs time series forecasting on s
 ```
 stockpredpy/
 │
-├── main.py               # Flask web application handling routes, data processing, and rendering.
-├── stock.py              # Standalone Python script for terminal-based execution/testing.
+├── app.py               # Flask web application handling routes, data processing, and rendering.
+├── code.py              # Standalone Python script for terminal-based execution/testing.
 ├── templates/
 │   └── index.html        # HTML template for the Flask frontend.
 ├── static/               # Directory where Flask saves generated Matplotlib plots.
@@ -50,9 +50,9 @@ pip install flask requests pandas numpy seaborn matplotlib statsmodels scikit-le
    ```bash
    cd /path/to/stockpredpy
    ```
-2. Run the `main.py` file:
+2. Run the `app.py` file:
    ```bash
-   python main.py
+   python app.py
    ```
 3. Open your web browser and go to `http://127.0.0.1:5000/`.
 4. Enter any valid US Stock Ticker symbol (e.g., `AAPL`, `TSLA`, `MSFT`) into the search bar to view the analysis and forecast.
@@ -61,7 +61,7 @@ pip install flask requests pandas numpy seaborn matplotlib statsmodels scikit-le
 
 If you want to run the analysis directly through your terminal and view the plots in separate windows, use the standalone script:
 
-1. Open `stock.py` in your editor and update the `symbol` variable at the top if you want to analyze a stock other than Apple (`AAPL`).
+1. Open `code.py` in your editor and update the `symbol` variable at the top if you want to analyze a stock other than Apple (`AAPL`).
 2. Run the script:
    ```bash
    python stock.py
@@ -70,15 +70,16 @@ If you want to run the analysis directly through your terminal and view the plot
 
 ## Configuration (API Key)
 
-Both `main.py` and `stock.py` use a Polygon.io API key defined in the code:
+Both `app.py` and `code.py` use a Polygon.io API key defined in the code:
 ```python
-api_key = "DjUOG_OOpvoSrMPpBbecBcJ_YAtNasP8"
+api_key = "YOUR_API_KEY"
 ```
 *Note: Make sure your Polygon API tier covers the requests being made or substitute it with your own API key if you hit rate limits.*
 
 ## Disclaimer
 
 This project is for educational and demonstrative purposes only. It is not intended to be used as financial advice or used directly for real trading and investments. Financial markets are highly volatile, and statistical models do not guarantee future performance.
+
 
 
 
