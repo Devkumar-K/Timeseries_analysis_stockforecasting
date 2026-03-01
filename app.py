@@ -4,182 +4,191 @@ import pandas as pd
 import numpy as np
 import seaborn as sns
 import matplotlib
-matplotlib.use('Agg') 
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from datetime import date, timedelta
 from statsmodels.tsa.seasonal import seasonal_decompose
 from statsmodels.graphics.tsaplots import plot_acf
 from statsmodels.tsa.stattools import adfuller
 from statsmodels.tsa.arima.model import ARIMA
+from statsmodels.tsa.statespace.sarimax import SARIMAX
 from sklearn.metrics import mean_absolute_error, mean_squared_error
-#import os
+import warnings
+warnings.filterwarnings("ignore")
 
 app = Flask(__name__)
+
+
+# ---------------------------------------------------
+# Helper Functions
+# ---------------------------------------------------
+
+def fetch_stock_data(symbol):
+    today = date.today().strftime("%Y-%m-%d")
+    api_key = "YOUR_API_KEY"
+    url = f"https://api.polygon.io/v2/aggs/ticker/{symbol}/range/1/day/2024-03-16/{today}?adjusted=true&sort=asc&limit=400&apiKey={api_key}"
+
+    response = requests.get(url)
+    data = response.json()
+
+    if "results" not in data:
+        return None
+
+    df = pd.DataFrame(data["results"])
+    if df.empty:
+        return None
+
+    df["timestamp"] = pd.to_datetime(df["t"], unit="ms")
+    df.set_index("timestamp", inplace=True)
+    df = df.asfreq("D").ffill()
+
+    return df["c"]
+
+
+def adf_analysis(series):
+    result = adfuller(series)
+    return {
+        "ADF Statistic": result[0],
+        "p-value": result[1],
+        "Stationary": result[1] < 0.05
+    }
+
+
+def evaluate_model(true, predicted):
+    mae = mean_absolute_error(true, predicted)
+    rmse = np.sqrt(mean_squared_error(true, predicted))
+    return mae, rmse
+
+
+def find_best_arima(train):
+    best_aic = float("inf")
+    best_order = None
+    best_model = None
+
+    for p in range(3):
+        for d in range(3):
+            for q in range(3):
+                try:
+                    model = ARIMA(train, order=(p, d, q))
+                    fit = model.fit()
+                    if fit.aic < best_aic:
+                        best_aic = fit.aic
+                        best_order = (p, d, q)
+                        best_model = fit
+                except:
+                    continue
+
+    return best_order, best_model
+
+
+# ---------------------------------------------------
+# Route
+# ---------------------------------------------------
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
     if request.method == 'POST':
-        symbol = request.form['symbol']
-        today = date.today().strftime("%Y-%m-%d")
-        api_key = "DjUOG_OOpvoSrMPpBbecBcJ_YAtNasP8"  
-        url = f"https://api.polygon.io/v2/aggs/ticker/{symbol}/range/1/day/2024-03-16/{today}?adjusted=true&sort=asc&limit=400&apiKey={api_key}"
-        response = requests.get(url)
-        data = response.json()
-        print("API Response:", data)
-        if "results" in data:
-            df = pd.DataFrame(data["results"])
-            print("DataFrame before processing:", df.head())
-            if df.empty:
-                print("DataFrame is empty. No data returned for the given stock symbol.")
-                return render_template('index.html', error="No data found for the given stock symbol.")
 
-            if 't' in df.columns:  # Check if 't' exists
-                df["timestamp"] = pd.to_datetime(df["t"], unit="ms")
-            else:
-                print("Timestamp column 't' not found in DataFrame.")
-                return render_template('index.html', error="Timestamp data not found.")
-            
-            df.set_index("timestamp", inplace=True)
-            df.drop_duplicates(inplace=True)
-            df.dropna(inplace=True)
-            df = df.asfreq("D").ffill()
-            close_prices = df["c"]
+        symbol = request.form['symbol'].upper()
+        close_prices = fetch_stock_data(symbol)
 
-            print("DataFrame after processing:", df.head())
+        if close_prices is None:
+            return render_template('index.html', error="Invalid symbol or no data found.")
 
-            plt.figure(figsize=(12, 8))
-            plt.plot(df.index, df['c'])  # Use df.index instead of df["timestamp"]
-            plt.title(f"Closing Prices for {symbol}")
-            plt.xlabel("Date")
-            plt.ylabel("Closing Price")
-            plt.grid(True)
-            plt.savefig('static/closing_prices.png')
+        # -------------------------
+        # ADF TEST
+        # -------------------------
+        adf_results = adf_analysis(close_prices)
+
+        # -------------------------
+        # VISUALIZATION: Closing Price
+        # -------------------------
+        plt.figure(figsize=(12, 6))
+        plt.plot(close_prices)
+        plt.title(f"{symbol} Closing Prices")
+        plt.grid()
+        plt.savefig("static/closing_prices.png")
+        plt.close()
+
+        # -------------------------
+        # SEASONAL DECOMPOSITION
+        # -------------------------
+        if len(close_prices) > 60:
+            decomposition = seasonal_decompose(close_prices, model="additive", period=30)
+            fig = decomposition.plot()
+            fig.savefig("static/decomposition.png")
             plt.close()
 
-            if len(close_prices) > 30:
-                decomposition = seasonal_decompose(close_prices, model="additive", period=30)
-                plt.figure(figsize=(12, 8))
-                plt.subplot(411)
-                plt.plot(close_prices, label="Original Data")
-                plt.legend()
-                plt.subplot(412)
-                plt.plot(decomposition.trend, label="Trend", color="red")
-                plt.legend()
-                plt.subplot(413)
-                plt.plot(decomposition.seasonal, label="Seasonality", color="green")
-                plt.legend()
-                plt.subplot(414)
-                plt.plot(decomposition.resid, label="Residual (Cyclic)", color="purple")
-                plt.legend()
-                plt.suptitle(f"Trend, Seasonality & Cyclic Components - {symbol}")
-                plt.tight_layout()
-                plt.savefig('static/decomposition.png')
-                plt.close()
+        # -------------------------
+        # ACF
+        # -------------------------
+        plt.figure(figsize=(10, 5))
+        plot_acf(close_prices, lags=40)
+        plt.savefig("static/acf.png")
+        plt.close()
 
-            plt.figure(figsize=(10, 5))
-            plot_acf(close_prices, lags=50)
-            plt.title(f"Autocorrelation Function (ACF) for {symbol}")
-            plt.savefig('static/acf.png')
-            plt.close()
+        # -------------------------
+        # Rolling Averages
+        # -------------------------
+        rolling_mean = close_prices.rolling(20).mean()
+        plt.figure(figsize=(12, 6))
+        plt.plot(close_prices, label="Original")
+        plt.plot(rolling_mean, label="20-Day MA")
+        plt.legend()
+        plt.savefig("static/rolling_avg.png")
+        plt.close()
 
-            adf_test = adfuller(close_prices)
-            adf_results = {
-                "ADF Statistic": adf_test[0],
-                "p-value": adf_test[1],
-                "Critical Values": adf_test[4],
-                "Stationary": "Stationary" if adf_test[1] < 0.05 else "Non-stationary"
-            }
+        # -------------------------
+        # Train/Test Split
+        # -------------------------
+        train_size = int(len(close_prices) * 0.8)
+        train, test = close_prices[:train_size], close_prices[train_size:]
 
-            df_daily = close_prices.resample("D").mean()
-            df_weekly = close_prices.resample("W").mean()
-            df_monthly = close_prices.resample("M").mean()
+        # -------------------------
+        # ARIMA
+        # -------------------------
+        best_order, arima_model = find_best_arima(train)
 
-            plt.figure(figsize=(12, 6))
-            plt.plot(df_daily, label="Daily Avg", marker="o")
-            plt.plot(df_weekly, label="Weekly Avg", marker="s")
-            plt.plot(df_monthly, label="Monthly Avg", marker="^")
-            plt.xlabel("Date")
-            plt.ylabel("Closing Price")
-            plt.title(f"Stock Prices Averages for {symbol}")
-            plt.legend()
-            plt.grid(True)
-            plt.savefig('static/averages.png')
-            plt.close()
+        arima_forecast = arima_model.forecast(steps=len(test))
+        arima_mae, arima_rmse = evaluate_model(test, arima_forecast)
 
-            df["hour"] = df.index.hour
-            df["day"] = df.index.day
-            heatmap_data = df.pivot_table(values="c", index="day", columns="hour", aggfunc=np.mean)
-            plt.figure(figsize=(12, 6))
-            sns.heatmap(heatmap_data, cmap="coolwarm", annot=True, fmt=".2f")
-            plt.xlabel("Hour of the Day")
-            plt.ylabel("Day of the Month")
-            plt.title(f"Stock Price Heatmap for {symbol}")
-            plt.savefig('static/heatmap.png')
-            plt.close()
+        # -------------------------
+        # SARIMA
+        # -------------------------
+        sarima_model = SARIMAX(train,
+                               order=(1, 1, 1),
+                               seasonal_order=(1, 1, 1, 12))
+        sarima_fit = sarima_model.fit()
 
-            train_size = int(len(close_prices) * 0.8)
-            train, test = close_prices[:train_size], close_prices[train_size:]
+        sarima_forecast = sarima_fit.forecast(steps=len(test))
+        sarima_mae, sarima_rmse = evaluate_model(test, sarima_forecast)
 
-            def find_best_arima(train_series):
-                best_aic = float("inf")
-                best_order = None
-                best_model = None
-                for p in range(3):
-                    for d in range(3):
-                        for q in range(3):
-                            try:
-                                model = ARIMA(train_series, order=(p, d, q))
-                                model_fit = model.fit()
-                                aic = model_fit.aic
-                                if aic < best_aic:
-                                    best_aic = aic
-                                    best_order = (p, d, q)
-                                    best_model = model_fit
-                            except:
-                                continue
-                return best_order, best_model
+        # -------------------------
+        # Forecast Plot Comparison
+        # -------------------------
+        plt.figure(figsize=(12, 6))
+        plt.plot(test.index, test, label="Actual", color="black")
+        plt.plot(test.index, arima_forecast, label="ARIMA", color="red")
+        plt.plot(test.index, sarima_forecast, label="SARIMA", color="green")
+        plt.legend()
+        plt.title("ARIMA vs SARIMA Forecast")
+        plt.grid()
+        plt.savefig("static/forecast_comparison.png")
+        plt.close()
 
-            best_order, best_model = find_best_arima(train)
-
-            if best_model:
-                N = 7  # Default: 7 days
-                forecast_obj = best_model.get_forecast(steps=N)
-                forecast = forecast_obj.predicted_mean
-                conf_int = forecast_obj.conf_int()
-
-                test_forecast = best_model.get_forecast(steps=len(test)).predicted_mean
-                mae = mean_absolute_error(test, test_forecast)
-                rmse = mean_squared_error(test, test_forecast)
-                rmse=rmse**0.5
-
-                # Plot actual vs predicted
-                plt.figure(figsize=(12, 6))
-                plt.plot(test.index, test, label="Actual", color="blue")
-                plt.plot(test.index, test_forecast, label="Predicted", color="red")
-                plt.xlabel("Date")
-                plt.ylabel("Closing Price")
-                plt.title(f"ARIMA Model Forecast for {symbol}")
-                plt.legend()
-                plt.grid(True)
-                plt.savefig('static/forecast.png')
-                plt.close()
-
-                forecast_dates = [df.index[-1] + timedelta(days=i) for i in range(1, N+1)]
-                plt.figure(figsize=(12, 6))
-                plt.plot(close_prices.index, close_prices, label="Historical Data", color="blue")
-                plt.plot(forecast_dates, forecast, label="Forecast", color="red", marker="o")
-                plt.fill_between(forecast_dates, conf_int.iloc[:, 0], conf_int.iloc[:, 1], color="pink", alpha=0.3)
-                plt.xlabel("Date")
-                plt.ylabel("Closing Price")
-                plt.title(f"Forecasted Prices with Confidence Interval for {symbol}")
-                plt.legend()
-                plt.grid(True)
-                plt.savefig('static/future_forecast.png')
-                plt.close()
-
-                return render_template('index.html', symbol=symbol, adf_results=adf_results, mae=mae, rmse=rmse)
+        return render_template(
+            'index.html',
+            symbol=symbol,
+            adf_results=adf_results,
+            arima_mae=arima_mae,
+            arima_rmse=arima_rmse,
+            sarima_mae=sarima_mae,
+            sarima_rmse=sarima_rmse,
+            best_order=best_order
+        )
 
     return render_template('index.html')
+
 
 if __name__ == '__main__':
     app.run(debug=True)
