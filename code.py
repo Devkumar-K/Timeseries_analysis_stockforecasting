@@ -21,7 +21,7 @@ sys.setrecursionlimit(2000)
 # ----------------------------------------------------
 symbol = "AAPL"
 today = date.today().strftime("%Y-%m-%d")
-api_key = "DjUOG_OOpvoSrMPpBbecBcJ_YAtNasP8"
+api_key = "YOUR_API_KEY"
 
 url = f"https://api.polygon.io/v2/aggs/ticker/{symbol}/range/1/day/2024-03-16/{today}?adjusted=true&sort=asc&limit=400&apiKey={api_key}"
 
@@ -170,3 +170,4 @@ plt.plot(future_dates, future_forecast, marker="o", label="7-Day Forecast")
 plt.legend()
 plt.grid()
 plt.show()
+
