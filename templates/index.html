@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Stock Analysis & Forecasting</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- Bootstrap -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+
+<body>
+    <div class="container">
+
+        <h1 class="text-center mt-4 mb-4">
+            📈 Stock Analysis & Forecasting
+        </h1>
+
+        <!-- Input Form -->
+        <form method="POST" class="form-inline justify-content-center mb-5">
+            <input type="text" name="symbol" class="form-control mr-2" placeholder="Enter Stock Symbol (e.g., AAPL)"
+                required>
+            <button type="submit" class="btn btn-primary">
+                Analyze
+            </button>
+        </form>
+
+        {% if error %}
+        <div class="alert alert-danger text-center">
+            {{ error }}
+        </div>
+        {% endif %}
+
+        {% if symbol %}
+        <hr>
+
+        <h2 class="text-center mb-4">
+            Results for {{ symbol }}
+        </h2>
+
+        <!-- ADF RESULTS -->
+        <div class="card mb-4">
+            <div class="card-header bg-info text-white">
+                ADF Stationarity Test
+            </div>
+            <div class="card-body">
+                <p><strong>ADF Statistic:</strong> {{ adf_results['ADF Statistic'] }}</p>
+                <p><strong>p-value:</strong> {{ adf_results['p-value'] }}</p>
+                <p>
+                    <strong>Status:</strong>
+                    {% if adf_results['Stationary'] %}
+                    <span class="text-success">Stationary ✅</span>
+                    {% else %}
+                    <span class="text-danger">Non-Stationary ❌</span>
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+
+        <!-- MODEL EVALUATION -->
+        <div class="card mb-4">
+            <div class="card-header bg-success text-white">
+                Model Evaluation
+            </div>
+            <div class="card-body">
+                <h5>ARIMA (Best Order: {{ best_order }})</h5>
+                <p>MAE: {{ arima_mae }}</p>
+                <p>RMSE: {{ arima_rmse }}</p>
+
+                <hr>
+
+                <h5>SARIMA</h5>
+                <p>MAE: {{ sarima_mae }}</p>
+                <p>RMSE: {{ sarima_rmse }}</p>
+            </div>
+        </div>
+
+        <!-- PLOTS -->
+        <h3 class="mb-3">Visual Analysis</h3>
+
+        <div class="mb-4">
+            <h5>Closing Prices</h5>
+            <img src="{{ url_for('static', filename='closing_prices.png') }}" class="img-fluid">
+        </div>
+
+        <div class="mb-4">
+            <h5>Seasonal Decomposition</h5>
+            <img src="{{ url_for('static', filename='decomposition.png') }}" class="img-fluid">
+        </div>
+
+        <div class="mb-4">
+            <h5>Autocorrelation (ACF)</h5>
+            <img src="{{ url_for('static', filename='acf.png') }}" class="img-fluid">
+        </div>
+
+        <div class="mb-4">
+            <h5>Rolling Average</h5>
+            <img src="{{ url_for('static', filename='rolling_avg.png') }}" class="img-fluid">
+        </div>
+
+        <div class="mb-4">
+            <h5>Forecast Comparison (ARIMA vs SARIMA)</h5>
+            <img src="{{ url_for('static', filename='forecast_comparison.png') }}" class="img-fluid">
+        </div>
+
+        {% endif %}
+
+    </div>
+</body>
+
+</html>
